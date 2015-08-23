@@ -59,6 +59,7 @@
 copy "$(TargetPath)" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program 1.0.4 - Genesis\GameData\Felbourn\OSFairings"
 copy "$(TargetPath)" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program 1.0.4 - MKS\GameData\Felbourn\OSFairings"
 copy "$(TargetPath)" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\GameData\Felbourn\OSFairings"
+copy "$(TargetPath)" "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings"
 
 echo ========== SOURCE
 
