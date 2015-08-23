@@ -1,0 +1,5 @@
+*.suo
+*.pdb
+*.dll
+KWCargoBay/bin/*
+KWCargoBay/obj/*
