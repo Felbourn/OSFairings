@@ -36,47 +36,56 @@ namespace Felbourn
                 Debug.LogError(message);
             else if (!enableLogging)
                 return;
-            Debug.Log(message);
+            else
+                Debug.Log(message);
         }
 
         public override void OnStart(PartModule.StartState state)
         {
             base.OnStart(state);
 
+            Log(LogType.Log, "fairing is '" + part.partInfo.name + "' attaching via explosiveNodeID 'node_stack_" + explosiveNodeID + "'");
+
             // I'm a nose fairing on a decoupler. Find my decoupler.
             AttachNode decouplerAttach = part.findAttachNode(explosiveNodeID);
             if (decouplerAttach == null)
             {
-                Log(LogType.Error, "can't find decoupler node: node_stack_" + explosiveNodeID);
+                Log(LogType.Error, "can't find explosiveNodeID: node_stack_" + explosiveNodeID);
                 return;
             }
-            Log(LogType.Log, "using attachment from " + part.name + ".node_stack_" + explosiveNodeID);
 
             Part decoupler = decouplerAttach.attachedPart;
             if (decoupler == null)
             {
-                Log(LogType.Warning, "not attached to decoupler, not shielding anything");
+                Log(LogType.Warning, "not attached to anything, can't shield anything");
                 return;
             }
+            Log(LogType.Log, "fairing attached to '" + decoupler.partInfo.name + "' which should have payload on 'node_stack_" + payloadNode + "'");
             shieldedParts.Add(decoupler); // add decoupler so we don't recurse through it
             
             // I know the decoupler, so find its payload(s).
-            Log(LogType.Log, "searching up from " + decoupler.name + ".node_stack_" + payloadNode);
             AttachNode[] payloadAttach = decoupler.findAttachNodes(payloadNode);
             if (payloadAttach == null)
             {
                 Log(LogType.Error, "can't find payload node: node_stack_" + payloadNode);
                 return;
             }
+            Log(LogType.Log, payloadAttach.Length + " of 'node_stack_" + payloadNode + "' found, searching all");
 
-            foreach (var attachNode in payloadAttach) // handle all same-name nodes that can have payload
+            for (int i = payloadAttach.Length - 1; i >= 0; i--) // handle all same-name nodes that can have payload
             {
-                Part payload = attachNode.attachedPart;
-                if (payload == null)
+                Log(LogType.Log, "search payload mount " + decoupler.name + ".node_stack_" + payloadNode + "[" + i + "]");
+                if (payloadAttach[i] == null || payloadAttach[i].attachedPart == null)
+                {
+                    Log(LogType.Log, "skip, " + decoupler.name + ".node_stack_" + payloadNode + "[" + i + "] has no payload");
                     continue;
+                }
+                Part payload = payloadAttach[i].attachedPart;
                 if (payload.ShieldedFromAirstream)
-                    continue; // another fairing section already did this
-
+                {
+                    Log(LogType.Log, "skip, another fairing section already did " + payload.partInfo.name);
+                    continue;
+                }
                 Log(LogType.Log, "shielding payload via part: " + payload.name);
                 ShieldPart(payload);
             }
@@ -99,12 +108,12 @@ namespace Felbourn
                 Part child = childAttach.attachedPart;
                 if (child == null)
                 {
-                    Log(LogType.Log, "no attach from: " + parent.partInfo.name + " at: " + childAttach.id);
+                    Log(LogType.Log, "skip, no attach from: " + parent.partInfo.name + " at: " + childAttach.id);
                     continue;
                 }
                 if (shieldedParts.Contains(child))
                 {
-                    Log(LogType.Log, "seen: " + parent.partInfo.name + " from: " + child.partInfo.name);
+                    Log(LogType.Log, "skip, seen: " + parent.partInfo.name + " from: " + child.partInfo.name);
                     continue;
                 }
                 Log(LogType.Log, "shield: " + child.partInfo.name + " via: " + parent.partInfo.name);
