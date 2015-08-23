@@ -66,9 +66,9 @@ copy "$(ProjectDir)ModuleFairingDecoupler.cs" "E:\Program Files (x86)\Steam\Stea
 
 echo ========== CFGs
 
-copy "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program 1.0.4 - MKS\GameData\Felbourn\OSFairings\*.cfg" "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings"
-copy "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\GameData\Felbourn\OSFairings"
-copy "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program 1.0.4 - Genesis\GameData\Felbourn\OSFairings"
+copy "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program\GameData\Felbourn\OSFairings\*.cfg" "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings"
+copy "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings\*.cfg" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program 1.0.4 - MKS\GameData\Felbourn\OSFairings"
+copy "E:\Kerbal\Projects\KWCargoBay\GameData\Felbourn\OSFairings\*.cfg" "E:\Program Files (x86)\Steam\SteamApps\common\Kerbal Space Program 1.0.4 - Genesis\GameData\Felbourn\OSFairings"
 </PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
