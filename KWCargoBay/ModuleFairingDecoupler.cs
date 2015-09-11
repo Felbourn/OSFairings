@@ -26,6 +26,7 @@ namespace Felbourn
         public bool enableLogging = true;
 
         private List<Part> shieldedParts = new List<Part>();
+        private List<string> exempt = new List<String>();
 
         private void Log(LogType mode, string message)
         {
@@ -38,6 +39,27 @@ namespace Felbourn
                 return;
             else
                 Debug.Log(message);
+        }
+
+        public override void OnLoad(ConfigNode node)
+        {
+            ConfigNode exempts = node.GetNode("EXEMPT");
+            if (exempts == null)
+            {
+                Log(LogType.Log, "no EXEMPT in " + node.name);
+                return;
+            }
+
+            foreach (ConfigNode.Value one in exempts.values)
+            {
+                if (one.name != "part")
+                {
+                    Log(LogType.Warning, "unknown EXEMPT key: " + one.name);
+                    continue;
+                }
+                Log(LogType.Log, "EXEMPT key: " + one.name);
+                exempt.Add(one.value);
+            }
         }
 
         public override void OnStart(PartModule.StartState state)
@@ -100,6 +122,11 @@ namespace Felbourn
 
         private void ShieldPart(Part parent)
         {
+            if (exempt.Contains(parent.partInfo.name))
+            {
+                Log(LogType.Log, "skip, exempt part: " + parent.partInfo.name);
+                return;
+            }
             parent.ShieldedFromAirstream = true;
             shieldedParts.Add(parent);
 
