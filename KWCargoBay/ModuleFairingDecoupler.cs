@@ -17,11 +17,15 @@ namespace Felbourn
 {
     public class ModuleFairingDecoupler : ModuleAnchoredDecoupler
     {
-        [KSPField(guiName = "Is Shielding", guiActive = true)]
+        [KSPField(guiName = "Old School Fairing", guiActive = true)]
         private bool shielding = false;
 
         [KSPField]
+        public string payloadPreNode = "none";
+        [KSPField]
         public string payloadNode = "top";
+        [KSPField]
+        public string payloadNode2 = "top2";
         [KSPField]
         public bool enableLogging = true;
 
@@ -30,7 +34,7 @@ namespace Felbourn
 
         private void Log(LogType mode, string message)
         {
-            message = "ModuleFairingDecoupler - " + message;
+            message = "[OSF] " + message;
             if (mode == LogType.Warning)
                 Debug.LogWarning(message);
             else if (mode == LogType.Error)
@@ -41,7 +45,7 @@ namespace Felbourn
                 Debug.Log(message);
         }
 
-        public override void OnLoad(ConfigNode node)
+        /*public override void OnLoad(ConfigNode node)
         {
             ConfigNode exempts = node.GetNode("EXEMPT");
             if (exempts == null)
@@ -60,16 +64,17 @@ namespace Felbourn
                 Log(LogType.Log, "EXEMPT key: " + one.name);
                 exempt.Add(one.value);
             }
-        }
+        }*/
 
         public override void OnStart(PartModule.StartState state)
         {
+            Log(LogType.Log, "OnStart " + state);
             base.OnStart(state);
 
             Log(LogType.Log, "fairing is '" + part.partInfo.name + "' attaching via explosiveNodeID 'node_stack_" + explosiveNodeID + "'");
 
             // I'm a nose fairing on a decoupler. Find my decoupler.
-            AttachNode decouplerAttach = part.findAttachNode(explosiveNodeID);
+            AttachNode decouplerAttach = part.FindAttachNode(explosiveNodeID);
             if (decouplerAttach == null)
             {
                 Log(LogType.Error, "can't find explosiveNodeID: node_stack_" + explosiveNodeID);
@@ -82,24 +87,43 @@ namespace Felbourn
                 Log(LogType.Warning, "not attached to anything, can't shield anything");
                 return;
             }
-            Log(LogType.Log, "fairing attached to '" + decoupler.partInfo.name + "' which should have payload on 'node_stack_" + payloadNode + "'");
-            shieldedParts.Add(decoupler); // add decoupler so we don't recurse through it
-            
+
+            if (payloadPreNode != "none")
+            {
+                Log(LogType.Log, "fairing attached to '" + decoupler.partInfo.name + "' structure piece");
+                AttachNode[] payloadPreAttach = decoupler.FindAttachNodes(payloadPreNode);
+                if (payloadPreAttach == null)
+                {
+                    Log(LogType.Error, "can't find decoupler on structure: node_stack_" + payloadPreNode);
+                    return;
+                }
+                decoupler = payloadPreAttach[0].attachedPart;
+            }
+            ShieldFrom(decoupler, payloadNode, requireNode: true);
+            ShieldFrom(decoupler, payloadNode2, requireNode: false);
+        }
+
+        private void ShieldFrom(Part decoupler, string startNode, bool requireNode)
+        {
+            Log(LogType.Log, "fairing attached to '" + decoupler.partInfo.name + "' which should have payload on 'node_stack_" + startNode + "'");
+            shieldedParts.Add(decoupler); // add decoupler so we don't search through it
+
             // I know the decoupler, so find its payload(s).
-            AttachNode[] payloadAttach = decoupler.findAttachNodes(payloadNode);
+            AttachNode[] payloadAttach = decoupler.FindAttachNodes(startNode);
             if (payloadAttach == null)
             {
-                Log(LogType.Error, "can't find payload node: node_stack_" + payloadNode);
+                if (requireNode)
+                    Log(LogType.Error, "can't find payload node: node_stack_" + startNode);
                 return;
             }
-            Log(LogType.Log, payloadAttach.Length + " of 'node_stack_" + payloadNode + "' found, searching all");
+            Log(LogType.Log, payloadAttach.Length + " of 'node_stack_" + startNode + "' found, searching all");
 
             for (int i = payloadAttach.Length - 1; i >= 0; i--) // handle all same-name nodes that can have payload
             {
-                Log(LogType.Log, "search payload mount " + decoupler.name + ".node_stack_" + payloadNode + "[" + i + "]");
+                Log(LogType.Log, "search payload mount " + decoupler.name + ".node_stack_" + startNode + "[" + i + "]");
                 if (payloadAttach[i] == null || payloadAttach[i].attachedPart == null)
                 {
-                    Log(LogType.Log, "skip, " + decoupler.name + ".node_stack_" + payloadNode + "[" + i + "] has no payload");
+                    Log(LogType.Log, "skip, " + decoupler.name + ".node_stack_" + startNode + "[" + i + "] has no payload");
                     continue;
                 }
                 Part payload = payloadAttach[i].attachedPart;
@@ -116,8 +140,15 @@ namespace Felbourn
             // now add all surface attached parts that connect to a shielded part
             if (vessel != null && vessel.parts != null)
                 for (int i = 0; i < 100; i++)
-                    if (!AddRadialParts())
+                    if (!AddRadialParts(i))
                         break;
+        }
+
+        void SetShielding(Part part, bool state)
+        {
+            //Log(LogType.Log, "SetShielding: part=" + part.partInfo.name + " shield=" + state);
+            part.recheckShielding = !state;
+            part.ShieldedFromAirstream = state;
         }
 
         private void ShieldPart(Part parent)
@@ -127,30 +158,37 @@ namespace Felbourn
                 Log(LogType.Log, "skip, exempt part: " + parent.partInfo.name);
                 return;
             }
-            parent.ShieldedFromAirstream = true;
+            if (part.physicalSignificance == Part.PhysicalSignificance.NONE)
+            {
+                Log(LogType.Log, "skip, no physics on " + parent.partInfo.name);
+                return;
+            }
+            SetShielding(parent, true);
             shieldedParts.Add(parent);
 
+            Log(LogType.Log, "attach nodes: " + parent.attachNodes.Count);
             foreach (AttachNode childAttach in parent.attachNodes)
             {
                 Part child = childAttach.attachedPart;
+                Log(LogType.Log, "search: " + parent.partInfo.name + "." + childAttach.id);
                 if (child == null)
                 {
-                    Log(LogType.Log, "skip, no attach from: " + parent.partInfo.name + " at: " + childAttach.id);
+                    Log(LogType.Log, "skip, nothing attached");
                     continue;
                 }
                 if (shieldedParts.Contains(child))
                 {
-                    Log(LogType.Log, "skip, seen: " + parent.partInfo.name + " from: " + child.partInfo.name);
+                    Log(LogType.Log, "skip, already saw: " + child.partInfo.name);
                     continue;
                 }
-                Log(LogType.Log, "shield: " + child.partInfo.name + " via: " + parent.partInfo.name);
+                Log(LogType.Log, "recursive shield: " + child.partInfo.name);
                 ShieldPart(child);
             }
         }
 
-        private bool AddRadialParts()
+        private bool AddRadialParts(int iteration)
         {
-            Log(LogType.Log, "add radial iteration");
+            Log(LogType.Log, "add radial iteration " + iteration);
             bool again = false;
             for (int i = vessel.parts.Count - 1; i >= 0; i--)
             {
@@ -165,11 +203,16 @@ namespace Felbourn
 
                 Part parent = radial.srfAttachNode.attachedPart;
                 if (parent == null)
-                    continue; // is it surface attached to something?
+                    continue; // is this surface attached to something?
                 if (shieldedParts.Contains(radial))
-                    continue; // did we already add ourself to the list?
+                {
+                    Log(LogType.Log, "shield radial from: " + radial.partInfo.name + " into: " + parent.partInfo.name);
+                    ShieldPart(parent);
+                    again = true;
+                    continue; // did we already add ourself to the list? just test parent
+                }
                 if (!shieldedParts.Contains(parent))
-                    continue; // is the thing we're attached to shielded?
+                    continue; // is the thing we're attached to shielded? then we are too
 
                 Log(LogType.Log, "shield radial from: " + parent.partInfo.name + " into: " + radial.partInfo.name);
                 ShieldPart(radial);
@@ -196,7 +239,7 @@ namespace Felbourn
             shielding = false;
             foreach (Part p in shieldedParts)
                 if (p != null)
-                    p.ShieldedFromAirstream = false;
+                    SetShielding(p, false);
             shieldedParts = null;
         }
     }
